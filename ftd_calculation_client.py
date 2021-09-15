@@ -7,7 +7,7 @@ import datetime
 import os
 import logging
 
-logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/tmp/client.log', level=logging.DEBUG, 
+logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/client.log', level=logging.DEBUG, 
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger(__name__)
 
