@@ -1,0 +1,7 @@
+{
+    "client_mqtt_config": 
+        {
+            "broker_name": "broker.emqx.io",
+            "port": 1883
+        }
+}
