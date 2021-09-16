@@ -7,22 +7,43 @@ import datetime
 import os
 import logging
 
-logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/client.log', level=logging.DEBUG, 
-                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
-logger = logging.getLogger(__name__)
+#logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/client.log', level=logging.DEBUG, 
+#                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+
+#logger = logging.getLogger(__name__)
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+
+def setup_logger(name, log_file, level=logging.INFO):
+    """To setup as many loggers as you want"""
+
+    handler = logging.FileHandler(log_file)        
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+
+    return logger
+
+# first file logger
+logger_client_error = setup_logger('main_logger', 'client.log')
+
+# second file logger
+logger_output = setup_logger('output_logger', 'second_logfile.log')
+
 
 class BrokerNameException(Exception):
     """Raised when the broker name is none or empty """
     def __init__(self, message="the broker name is none or empty"):
         self.message = message
-        logger.error(self.message)
+        logger_client_error.error(self.message)
         super().__init__(self.message)
 
 class PortNumberException(Exception):
     """Raised when the port number is none"""
     def __init__(self, message="the port number is none"):
         self.message = message
-        logger.error(self.message)
+        logger_client_error.error(self.message)
         super().__init__(self.message)
 
 class EmptyMessageException(Exception):
@@ -30,7 +51,7 @@ class EmptyMessageException(Exception):
     def __init__(self, topic, message="the message is empty"):
         self.topic = topic
         self.message = self.topic +': '+ message
-        logger.error(self.message)
+        logger_client_error.error(self.message)
         super().__init__(self.message)
 
 
@@ -56,7 +77,7 @@ weight_neutral = 0
 weight_disgust = 0.042
 weight_sorprise = 0.042
 weights_emozioni = pd.Series([weight_anger, weight_happiness, weight_fear, weight_sadness, weight_neutral, weight_disgust, weight_sorprise])
-s = 0
+s = 0 #speed value
 Ei = 0
 DCi = 0
 DVi = 0
@@ -66,23 +87,25 @@ flagD = False
 flagV = False
 
 
-#buffer for mean insert
-anger = []
-happiness = []
-fear = []
-sadness = []
-neutral = []
-disgust = []
-surprise = []
-DCs = []
-DVs = []
-ss = []
-DVis = []
-DCis = []
-emotions_total = []
-FTDs = []
+#variable for log
+anger = 0
+happiness = 0
+fear = 0
+sadness = 0
+neutral = 0
+disgust = 0
+surprise = 0
+cd = 0 #cognitive distraction value
+vd = 0 #visual distraction value
+#DCs = 0
+#DVs = 0
+#ss = 0
+#DVis = 0
+#DCis = 0
+#emotions_total = 0
+#FTDs = []
 
-count = 0
+#count = 0
 
 user = 'person0'
 
@@ -91,13 +114,13 @@ def on_subscribe(client, userdata, mid, granted_qos):
 
 def on_message(client, userdata, msg):
     global FTD, IDC, IDV, weight, decimals, threshold_v, threshold_i_v, threshold_i_c, DCi, DVi, s, Ei, flagD, flagE, flagV
-    global DCs, DVs, DCis, DVis, emotions_total, count, anger, happiness, fear, sadness, neutral, disgust, surprise, FTDs, ss
+    global  anger, happiness, fear, sadness, neutral, disgust, surprise, cd, vd #, DCs, DVs, DCis, DVis, emotions_total, count, FTDs, ss
     global user
     #print("topic: "+msg.topic)
 
     if msg.topic == 'NP_RELAB_VD':
         s = json.loads(str(msg.payload.decode("utf-8")))['VehicleDynamics']['speed']['x']
-        ss.append(s)
+        #ss.append(s)
         flagV = True
     elif msg.topic == 'NP_UNITO_DCDC':
         try:
@@ -108,12 +131,12 @@ def on_message(client, userdata, msg):
 
                 cd = D['cognitive_distraction'] if D['cognitive_distraction_confidence'] != 0 else 0.0
                 if D['cognitive_distraction_confidence'] == 0.0:
-                    logger.warning('NO cognitive distraction value')
+                    logger_client_error.warning('NO cognitive distraction value')
                     print('NO cognitive distraction value')
 
                 vd = D['eyesOffRoad'] if D['eyesOffRoad_confidence'] != 0.0 else 0.0
                 if D['eyesOffRoad_confidence'] == 0.0:
-                    logger.warning('NO visual distraction value')
+                    logger_client_error.warning('NO visual distraction value')
                     print('NO visual distraction value')
         except Exception as exception:
             cd = 0.0
@@ -124,10 +147,10 @@ def on_message(client, userdata, msg):
         DVi = round(vd * s/threshold_v * weight **(IDV - threshold_i_v), decimals)
 
         flagD = True
-        DCs.append(cd)
+        '''DCs.append(cd)
         DVs.append(vd)
         DCis.append(DCi)
-        DVis.append(DVi)
+        DVis.append(DVi)'''
 
     elif msg.topic == 'Emotions':
         try:
@@ -137,7 +160,7 @@ def on_message(client, userdata, msg):
 
             if len(json.loads(str(msg.payload.decode("utf-8")))) == 0:
                 e = {"predominant" : "0","neutral":"0","happiness": "0","surprise":"0","sadness": "0","anger": "0","disgust": "0","fear": "0","engagement": "0","valence": "0"}
-                logger.warning('NO emotion value')
+                logger_client_error.warning('NO emotion value')
                 print('NO emotion value')
             else:
                 e = json.loads(str(msg.payload.decode("utf-8")))[user]
@@ -153,14 +176,14 @@ def on_message(client, userdata, msg):
         Ei =  round((emotions * weights_emozioni).sum() / weights_emozioni.sum(), decimals)
 
         flagE = True
-        anger.append(float(e['anger']))
-        happiness.append(float(e['happiness']))
-        fear.append(float(e['fear']))
-        sadness.append(float(e['sadness']))
-        neutral.append(float(e['neutral']))
-        disgust.append(float(e['disgust']))
-        surprise.append(float(e['surprise']))
-        emotions_total.append(Ei)
+        anger = float(e['anger'])
+        happiness = float(e['happiness'])
+        fear = float(e['fear'])
+        sadness = float(e['sadness'])
+        neutral = float(e['neutral'])
+        disgust = float(e['disgust'])
+        surprise= float(e['surprise'])
+        #emotions_total= Ei
     elif msg.topic == 'NP_UNIBO_FTD':
         FTD = json.loads(str(msg.payload.decode("utf-8")))['person0']['ftd']
 
@@ -170,88 +193,108 @@ def on_message(client, userdata, msg):
             'ftd' : max(0, 1 - (DCi + DVi + Ei))
             }}
         client.publish("NP_UNIBO_FTD", json.dumps(ftd))
+
+        msg = '''
+        FTD : %s
+        cognitive distraction : %s
+        visual distraction: %s
+        emotion: 
+                anger = %s
+                happiness = %s
+                fear = %s
+                sadness = %s
+                neutral = %s
+                disgust = %s
+                surprise = %s
+        speed: %s
+        ''' % (max(0, 1 - (DCi + DVi + Ei)), cd, vd, anger, happiness, fear, sadness, neutral, disgust, surprise, s)
+        logger_output.info(msg)
+        
         flagE = False
         flagD = False
         flagV = False
-        FTDs.append(max(0, 1 - (DCi + DVi + Ei)))
+        #FTDs.append(max(0, 1 - (DCi + DVi + Ei)))
         print()
-        if count == FTD_MAX_PUBLISH:
-            d = {
-            'speed': ss,
-            'DC':DCs,
-            'DCis': DCis,
-            'DV':DVs,
-            'DVis':DVis,
-            'anger' : anger,
-            'disgust' : disgust,
-            'fear' : fear,
-            'happiness' : happiness,
-            'neutral' : neutral,
-            'sadness' : sadness,
-            'surprise' : surprise,
-            'emotions_total': emotions_total,
-            'FTD' : FTDs,
-            }
+        print('FTD =', max(0, 1 - (DCi + DVi + Ei)))
+        print()
+    ''' da fare 1 tab
+    if count == FTD_MAX_PUBLISH:
+        d = {
+        'speed': ss,
+        'DC':DCs,
+        'DCis': DCis,
+        'DV':DVs,
+        'DVis':DVis,
+        'anger' : anger,
+        'disgust' : disgust,
+        'fear' : fear,
+        'happiness' : happiness,
+        'neutral' : neutral,
+        'sadness' : sadness,
+        'surprise' : surprise,
+        'emotions_total': emotions_total,
+        'FTD' : FTDs,
+        }
 
-            data = pd.DataFrame(d)
-            data_mean = pd.DataFrame(d).mean()
+        data = pd.DataFrame(d)
+        data_mean = pd.DataFrame(d).mean()
 
-            speed_mean= data_mean['speed']
-            visual_distraction_mean = 1 if data['DV'].sum() > len(DVs)//2 else 0
-            cognitive_distraction_mean = 1 if data['DC'].sum() > len(DCs)//2 else 0
-            anger_mean = data_mean['anger']
-            happiness_mean = data_mean['happiness']
-            fear_mean = data_mean['fear']
-            sadness_mean = data_mean['sadness']
-            disgust_mean = data_mean['disgust']
-            surprise_mean = data_mean['surprise']
-            neutral_mean = data_mean['neutral']
-            visual_distraction_tot_mean = data_mean['DVis']
-            cognitive_distraction_tot_mean = data_mean['DCis']
-            emozione_tot = data_mean['emotions_total']
-            ftd_tot =  data_mean['FTD']
-            
-            #TODO INSERT INTO DATABASE
-            print('INSERT INTO DATABASE:')
-            print(f'''
-            user: {user}
-            speed = {speed_mean}
-            visual_distraction = {visual_distraction_mean}
-            cognitive_distraction = {cognitive_distraction_mean}
-            anger = {anger_mean}
-            happiness = {happiness_mean}
-            fear = {fear_mean}
-            sadness = {sadness_mean}
-            disgust = {disgust_mean}
-            surprise = {surprise_mean}
-            neutral = {neutral_mean}
-            visual_distraction_tot = {visual_distraction_tot_mean}
-            cognitive_distraction_tot = {cognitive_distraction_tot_mean}
-            emoziones_tot = {emozione_tot}
-            ftd_tot =  {ftd_tot}
-            ''')
-
-            anger = []
-            happiness = []
-            fear = []
-            sadness = []
-            neutral = []
-            disgust = []
-            surprise = []
-            DCs = []
-            DVs = []
-            ss = []
-            DVis = []
-            DCis = []
-            emotions_total = []
-            FTDs = []
-            count = 0 
-        else:
-            count +=1
+        speed_mean= data_mean['speed']
+        visual_distraction_mean = 1 if data['DV'].sum() > len(DVs)//2 else 0
+        cognitive_distraction_mean = 1 if data['DC'].sum() > len(DCs)//2 else 0
+        anger_mean = data_mean['anger']
+        happiness_mean = data_mean['happiness']
+        fear_mean = data_mean['fear']
+        sadness_mean = data_mean['sadness']
+        disgust_mean = data_mean['disgust']
+        surprise_mean = data_mean['surprise']
+        neutral_mean = data_mean['neutral']
+        visual_distraction_tot_mean = data_mean['DVis']
+        cognitive_distraction_tot_mean = data_mean['DCis']
+        emozione_tot = data_mean['emotions_total']
+        ftd_tot =  data_mean['FTD']'''
+        
+        #TODO INSERT INTO DATABASE
+        #print('INSERT INTO DATABASE:')
+        #print(f'''
+        #user: {user}
+        #speed = {speed_mean}
+        #visual_distraction = {visual_distraction_mean}
+        #cognitive_distraction = {cognitive_distraction_mean}
+        #anger = {anger_mean}
+        #happiness = {happiness_mean}
+        #fear = {fear_mean}
+        #sadness = {sadness_mean}
+        #disgust = {disgust_mean}
+        #surprise = {surprise_mean}
+        #neutral = {neutral_mean}
+        #visual_distraction_tot = {visual_distraction_tot_mean}
+        #cognitive_distraction_tot = {cognitive_distraction_tot_mean}
+        #emoziones_tot = {emozione_tot}
+        #ftd_tot =  {ftd_tot}
+        #''')
+    '''
+        anger = []
+        happiness = []
+        fear = []
+        sadness = []
+        neutral = []
+        disgust = []
+        surprise = []
+        DCs = []
+        DVs = []
+        ss = []
+        DVis = []
+        DCis = []
+        emotions_total = []
+        FTDs = []
+        count = 0 
+    else:
+        count +=1'''
 
 def main():
-    logger.info('')
-    logger.info('new client start')
+    logger_client_error.info('')
+    logger_client_error.info('new client start')
     broker_name = None #'tools.lysis-iot.com'
     port = None #1883
 

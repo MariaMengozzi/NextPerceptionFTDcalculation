@@ -34,6 +34,8 @@ for i in range(10):
     #client.on_subscribe = on_subscribe
     #client.on_message = on_message
     client.connect('broker.emqx.io', 1883) #tools.lysis-iot.com -> broker prof 
+    for i in range(4):
+        client.publish('Emotions', emotion)
     client.publish('NP_UNITO_DCDC', D)
     client.publish('Emotions', emotion)
     client.publish('NP_RELAB_VD', speed)
