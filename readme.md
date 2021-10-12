@@ -10,6 +10,7 @@ In order to run this client must have install the following packages:
 * python3 [link for python3 download](https://www.python.org/downloads/)
 * paho [link for paho download](https://pypi.org/project/paho-mqtt/)
 * pandas [link for pandas download](https://pandas.pydata.org/docs/getting_started/install.html)
+* numpy [link for numpy download](https://numpy.org/install/)
 
 ## USAGE
 Before running the ftd_calculation_client.py update:
