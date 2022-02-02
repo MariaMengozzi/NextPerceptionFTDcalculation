@@ -6,31 +6,42 @@ import numpy as np
 import json
 import datetime
 import os
+
+from log_to_json import JsonFormatter
 import logging
 
 #logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/client.log', level=logging.DEBUG, 
 #                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
 #logger = logging.getLogger(__name__)
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+
 
 def setup_logger(name, log_file, level=logging.INFO):
     """To setup as many loggers as you want"""
 
     handler = logging.FileHandler(log_file)        
-    handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.addHandler(handler)
 
-    return logger
+    return logger, handler
 
 # first file logger
-logger_client_error = setup_logger('main_logger', 'client.log')
+logger_client_error, handler_client_error = setup_logger('main_logger', 'client.log')
+json_formatter = JsonFormatter(
+    keys=("message","name")
+)
+handler_client_error.setFormatter(json_formatter)
 
 # second file logger
-logger_output = setup_logger('output_logger', 'second_logfile.log')
+logger_output, handler_output = setup_logger('output_logger', 'second_logfile.log')
+
+
+json_formatter = JsonFormatter(
+    keys=("name",)
+)
+handler_output.setFormatter(json_formatter)
 
 
 class BrokerNameException(Exception):
@@ -211,21 +222,38 @@ def on_message(client, userdata, msg):
             }}
         client.publish("NP_UNIBO_FTD", json.dumps(ftd))
 
-        msg = '''
-        FTD : %s
-        cognitive distraction : %s
-        visual distraction: %s
-        emotion: 
-                anger = %s
-                happiness = %s
-                fear = %s
-                sadness = %s
-                neutral = %s
-                disgust = %s
-                surprise = %s
-        speed: %s
-        ''' % (max(0, 1 - (DCi + DVi + Ei)), cd, vd, anger, happiness, fear, sadness, neutral, disgust, surprise, np.mean(speed_buffer))
-        logger_output.info(msg)
+        msg = {
+            'FTD': max(0, 1 - (DCi + DVi + Ei)),
+            'cognitive distraction' : cd,
+            'visual distraction': vd,
+            'emotion': {
+                    'anger': anger,
+                    'happiness': happiness,
+                    'fear': fear,
+                    'sadness': sadness,
+                    'neutral': neutral,
+                    'disgust': disgust,
+                    'surprise': surprise
+            },     
+        'speed': np.mean(speed_buffer)
+        }
+
+        logger_output.critical({
+            'timestamp': ftd[user]['timestamp'],
+            'FTD': max(0, 1 - (DCi + DVi + Ei)),
+            'cognitive distraction' : cd,
+            'visual distraction': vd,
+            'emotion': {
+                    'anger': anger,
+                    'happiness': happiness,
+                    'fear': fear,
+                    'sadness': sadness,
+                    'neutral': neutral,
+                    'disgust': disgust,
+                    'surprise': surprise
+            },     
+        'speed': np.mean(speed_buffer)
+        })
         
         #flagE = False
         flagD = False
@@ -240,7 +268,6 @@ def on_message(client, userdata, msg):
         
 
 def main():
-    logger_client_error.info('')
     logger_client_error.info('new client start')
     broker_name = None #'tools.lysis-iot.com'
     port = None #1883
