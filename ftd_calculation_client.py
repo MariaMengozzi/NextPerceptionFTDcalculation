@@ -10,12 +10,6 @@ import os
 from log_to_json import JsonFormatter
 import logging
 
-#logging.basicConfig(filename=os.path.dirname(os.path.abspath(__file__))+'/client.log', level=logging.DEBUG, 
-#                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
-
-#logger = logging.getLogger(__name__)
-
-
 def setup_logger(name, log_file, level=logging.INFO):
     """To setup as many loggers as you want"""
 
@@ -28,20 +22,15 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger, handler
 
 # first file logger
-logger_client_error, handler_client_error = setup_logger('main_logger', 'client.log')
+logger_client_error, handler_client_error = None, None
 json_formatter = JsonFormatter(
     keys=("message","name")
 )
-handler_client_error.setFormatter(json_formatter)
+
 
 # second file logger
-logger_output, handler_output = setup_logger('output_logger', 'second_logfile.log')
+logger_output, handler_output = None, None
 
-
-json_formatter = JsonFormatter(
-    keys=("name",)
-)
-handler_output.setFormatter(json_formatter)
 
 
 class BrokerNameException(Exception):
@@ -121,7 +110,7 @@ surprise_buffer = [0,0,0,0]
 speed_buffer = [0,0,0,0]
 
 
-user = 'person0'
+user = ''
 
 
 def on_subscribe(client, userdata, mid, granted_qos):
@@ -268,18 +257,28 @@ def on_message(client, userdata, msg):
         
 
 def main():
-    logger_client_error.info('new client start')
+    global user, logger_client_error, handler_client_error, logger_output, handler_output
+    
     broker_name = None #'tools.lysis-iot.com'
     port = None #1883
 
     try:
 
         with open((os.path.dirname(os.path.abspath(__file__)) +'/config.json').replace ('\\', '/'),'r') as json_file:
-            data = json.load(json_file)['client_mqtt_config']
+            file = json.load(json_file)
+            data = file['client_mqtt_config']
             print(data['broker_name'])
             broker_name = data['broker_name']
             print(data['port'])
             port = int(data['port'])
+            user = file['person_config']
+            print(user)
+            logger_client_error, handler_client_error = setup_logger('main_logger', user+'_client.log')
+            handler_client_error.setFormatter(json_formatter)
+            logger_output, handler_output = setup_logger('output_logger', user+'_result.log')
+            handler_output.setFormatter(json_formatter)
+            
+
             
     except Exception as exception:
         print(exception)

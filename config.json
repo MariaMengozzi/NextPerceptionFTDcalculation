@@ -3,5 +3,6 @@
         {
             "broker_name": "broker.emqx.io",
             "port": 1883
-        }
+        },
+    "person_config": "person0"
 }
