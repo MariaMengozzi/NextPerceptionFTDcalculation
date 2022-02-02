@@ -13,8 +13,9 @@ In order to run this client must have install the following packages:
 * paho [link for paho download](https://pypi.org/project/paho-mqtt/)
 * pandas [link for pandas download](https://pandas.pydata.org/docs/getting_started/install.html)
 * numpy [link for numpy download](https://numpy.org/install/)
+* log-to-json [link for log-to-json download](https://pypi.org/project/log-to-json/)
 
-This last three packages can install running `pip install -r path/to/requirements.txt`  in your shell.
+This last four packages can install running `pip install -r path/to/requirements.txt`  in your shell.
 
 ## USAGE
 Before running the ftd_calculation_client.py update:
