@@ -1,5 +1,6 @@
 #client bloccante: se tutte le operazioni sono sequenziali possiamo usare questo client single threaded.
 
+from asyncio.windows_events import NULL
 import paho.mqtt.client as paho
 import pandas as pd
 import numpy as np
@@ -24,7 +25,7 @@ def setup_logger(name, log_file, level=logging.INFO):
 # first file logger
 logger_client_error, handler_client_error = None, None
 json_formatter = JsonFormatter(
-    keys=("message","name")
+    #keys=("message", "name")
 )
 
 
@@ -37,14 +38,22 @@ class BrokerNameException(Exception):
     """Raised when the broker name is none or empty """
     def __init__(self, message="the broker name is none or empty"):
         self.message = message
-        logger_client_error.error(self.message)
+        logger_client_error.error({
+            'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+            "topic": None,
+            "msg": message
+        })
         super().__init__(self.message)
 
 class PortNumberException(Exception):
     """Raised when the port number is none"""
     def __init__(self, message="the port number is none"):
         self.message = message
-        logger_client_error.error(self.message)
+        logger_client_error.error({
+            'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+            "topic": None,
+            "msg": message
+        })
         super().__init__(self.message)
 
 class EmptyMessageException(Exception):
@@ -52,7 +61,11 @@ class EmptyMessageException(Exception):
     def __init__(self, topic, message="the message is empty"):
         self.topic = topic
         self.message = self.topic +': '+ message
-        logger_client_error.error(self.message)
+        logger_client_error.error({
+            'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+            "topic": self.topic,
+            "msg": message
+        })
         super().__init__(self.message)
 
 
@@ -82,6 +95,7 @@ s = 0 #speed value
 Ei = 0
 DCi = 0
 DVi = 0
+timestamp_relab=0;
 
 flagE = False
 flagD = False
@@ -119,14 +133,16 @@ def on_subscribe(client, userdata, mid, granted_qos):
 def on_message(client, userdata, msg):
     global FTD, IDC, IDV, weight, decimals, threshold_v, threshold_i_v, threshold_i_c, DCi, DVi, s, Ei, flagD, flagE, flagV
     global anger, happiness, fear, sadness, neutral, disgust, surprise, cd, vd 
-    global anger_buffer, happiness_buffer, fear_buffer, sadness_buffer, neutral_buffer, disgust_buffer, surprise_buffer, speed_buffer
+    global anger_buffer, happiness_buffer, fear_buffer, sadness_buffer, neutral_buffer, disgust_buffer, surprise_buffer, speed_buffer, timestamp_relab
     global user
     #print("topic: "+msg.topic)
 
     if msg.topic == 'NP_RELAB_VD':
-        s = json.loads(str(msg.payload.decode("utf-8")))['VehicleDynamics']['speed']['x']
+        s = json.loads(str(msg.payload.decode("utf-8")))
+        timestamp_relab = s['VehicleDynamics']['timestamp']
         speed_buffer.pop(0)
-        speed_buffer.append(s)
+        speed_buffer.append(s['VehicleDynamics']['speed']['x'])
+
         #flagV = True
     elif msg.topic == 'NP_UNITO_DCDC':
         try:
@@ -137,12 +153,20 @@ def on_message(client, userdata, msg):
 
                 cd = D['cognitive_distraction'] if D['cognitive_distraction_confidence'] != 0 else 0.0
                 if D['cognitive_distraction_confidence'] == 0.0:
-                    logger_client_error.warning('NO cognitive distraction value')
+                    logger_client_error.warning({
+                        'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+                        "topic": 'NP_UNITO_DCDC',
+                        "msg": 'NO cognitive distraction value'
+                    })
                     print('NO cognitive distraction value')
 
                 vd = D['eyesOffRoad'] if D['eyesOffRoad_confidence'] != 0.0 else 0.0
                 if D['eyesOffRoad_confidence'] == 0.0:
-                    logger_client_error.warning('NO visual distraction value')
+                    logger_client_error.warning({
+                            'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+                            "topic": 'NP_UNITO_DCDC',
+                            "msg": 'NO visual distraction value'
+                        })
                     print('NO visual distraction value')
         except Exception as exception:
             cd = 0.0
@@ -163,7 +187,11 @@ def on_message(client, userdata, msg):
 
             if len(json.loads(str(msg.payload.decode("utf-8")))) == 0:
                 e = {"predominant" : "0","neutral":"0","happiness": "0","surprise":"0","sadness": "0","anger": "0","disgust": "0","fear": "0","engagement": "0","valence": "0"}
-                logger_client_error.warning('NO emotion value')
+                logger_client_error.warning({
+                    'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+                    "topic": "Emotions",
+                    "msg": 'NO emotion value'
+                })
                 print('NO emotion value')
             else:
                 e = json.loads(str(msg.payload.decode("utf-8")))[user]
@@ -206,7 +234,7 @@ def on_message(client, userdata, msg):
         Ei =  round((emotions * weights_emozioni).sum() / weights_emozioni.sum(), decimals)
 
         ftd = {user:{
-            'timestamp': datetime.datetime.now().timestamp(),
+            'timestamp': timestamp_relab,
             'ftd' : max(0, 1 - (DCi + DVi + Ei))
             }}
         client.publish("NP_UNIBO_FTD", json.dumps(ftd))
@@ -228,7 +256,8 @@ def on_message(client, userdata, msg):
         }
 
         logger_output.critical({
-            'timestamp': ftd[user]['timestamp'],
+            'timestamp_relab': timestamp_relab, #ftd[user]['timestamp']
+            'timestamp_unibo': datetime.datetime.now().timestamp() * 1000, #convert to milliseconds
             'FTD': max(0, 1 - (DCi + DVi + Ei)),
             'cognitive distraction' : cd,
             'visual distraction': vd,
