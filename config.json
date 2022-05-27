@@ -1,7 +1,7 @@
 {
     "client_mqtt_config": 
         {
-            "broker_name": "broker.emqx.io",
+            "broker_name": "broker.hivemq.com",
             "port": 1883
         },
     "person_config": "person0"

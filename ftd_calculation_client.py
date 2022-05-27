@@ -32,7 +32,8 @@ json_formatter = JsonFormatter(
 # second file logger
 logger_output, handler_output = None, None
 
-
+# second file logger
+logger_topic, handler_topic = None, None
 
 class BrokerNameException(Exception):
     """Raised when the broker name is none or empty """
@@ -126,9 +127,14 @@ speed_buffer = [0,0,0,0]
 
 user = ''
 
-
 def on_subscribe(client, userdata, mid, granted_qos):
     print("Subscribed: "+str(mid)+" "+str(granted_qos))
+
+def logTopic(topic, msg):
+    logger_topic.critical({
+        "topic": topic,
+        "msg": msg
+    })
 
 def on_message(client, userdata, msg):
     global FTD, IDC, IDV, weight, decimals, threshold_v, threshold_i_v, threshold_i_c, DCi, DVi, s, Ei, flagD, flagE, flagV
@@ -138,10 +144,19 @@ def on_message(client, userdata, msg):
     #print("topic: "+msg.topic)
 
     if msg.topic == 'NP_RELAB_VD':
-        s = json.loads(str(msg.payload.decode("utf-8")))
-        timestamp_relab = s['VehicleDynamics']['timestamp']
-        speed_buffer.pop(0)
-        speed_buffer.append(s['VehicleDynamics']['speed']['x'])
+        try:
+            if len(str(msg.payload.decode('utf-8'))) == 0:
+                raise EmptyMessageException(topic='NP_RELAB_VD')
+            else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
+                s = json.loads(str(msg.payload.decode("utf-8")))
+                timestamp_relab = s['VehicleDynamics']['timestamp']
+                speed_buffer.pop(0)
+                speed_buffer.append(s['VehicleDynamics']['speed']['x'])
+
+        except Exception as exception:
+            print(exception)
+        
 
         #flagV = True
     elif msg.topic == 'NP_UNITO_DCDC':
@@ -149,6 +164,7 @@ def on_message(client, userdata, msg):
             if len(str(msg.payload.decode('utf-8'))) == 0:
                 raise EmptyMessageException(topic='NP_UNITO_DCDC')
             else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 D = json.loads(str(msg.payload.decode("utf-8")))
 
                 cd = D['cognitive_distraction'] if D['cognitive_distraction_confidence'] != 0 else 0.0
@@ -160,24 +176,32 @@ def on_message(client, userdata, msg):
                     })
                     print('NO cognitive distraction value')
 
-                vd = D['eyesOffRoad'] if D['eyesOffRoad_confidence'] != 0.0 else 0.0
-                if D['eyesOffRoad_confidence'] == 0.0:
-                    logger_client_error.warning({
-                            'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
-                            "topic": 'NP_UNITO_DCDC',
-                            "msg": 'NO visual distraction value'
-                        })
-                    print('NO visual distraction value')
         except Exception as exception:
             cd = 0.0
-            vd = 0.0
             print(exception)
 
+
         speed_mean = np.mean(speed_buffer)
+        if (cd):
+            IDC +=1
+        else:
+            IDC = 0
         DCi = round(cd * speed_mean/threshold_v * weight **(IDC - threshold_i_c), decimals)
-        DVi = round(vd * speed_mean/threshold_v * weight **(IDV - threshold_i_v), decimals)
 
         flagD = True
+
+    elif msg.topic == 'AITEK_EVENTS':
+        try:
+            if len(str(msg.payload.decode('utf-8'))) == 0:
+                raise EmptyMessageException(topic='AITEK_EVENTS')
+            else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
+                D = json.loads(str(msg.payload.decode("utf-8")))
+                vd = 1 if D['start'] == 'True' else 0
+
+        except Exception as exception:
+            vd = 0
+            print(exception)
 
     elif msg.topic == 'Emotions':
         try:
@@ -194,6 +218,7 @@ def on_message(client, userdata, msg):
                 })
                 print('NO emotion value')
             else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 e = json.loads(str(msg.payload.decode("utf-8")))[user]
         except Exception as exception:
                 print(exception)
@@ -217,7 +242,14 @@ def on_message(client, userdata, msg):
         surprise_buffer.append(float(e['surprise']))
         #emotions_total= Ei
     elif msg.topic == 'NP_UNIBO_FTD':
-        FTD = json.loads(str(msg.payload.decode("utf-8")))['person0']['ftd']
+        try:
+            if len(str(msg.payload.decode('utf-8'))) == 0:
+                raise EmptyMessageException(topic='NP_UNIBO_FTD')
+            else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
+                FTD = json.loads(str(msg.payload.decode("utf-8")))['person0']['ftd']
+        except Exception as exception:
+            print(exception)
 
     if flagD: #flagE and flagD and flagV:
 
@@ -232,6 +264,13 @@ def on_message(client, userdata, msg):
         emotions = pd.Series([anger, happiness, fear, sadness, neutral, disgust, surprise])
         
         Ei =  round((emotions * weights_emozioni).sum() / weights_emozioni.sum(), decimals)
+
+        if (cd):
+            IDV +=1
+        else:
+            IDV = 0 
+
+        DVi = round(vd * speed_mean/threshold_v * weight **(IDV - threshold_i_v), decimals)
 
         ftd = {user:{
             'timestamp': timestamp_relab,
@@ -286,7 +325,7 @@ def on_message(client, userdata, msg):
         
 
 def main():
-    global user, logger_client_error, handler_client_error, logger_output, handler_output
+    global user, logger_client_error, handler_client_error, logger_output, handler_output, logger_topic, handler_topic
     
     broker_name = None #'tools.lysis-iot.com'
     port = None #1883
@@ -306,6 +345,8 @@ def main():
             handler_client_error.setFormatter(json_formatter)
             logger_output, handler_output = setup_logger('output_logger', user+'_result.log')
             handler_output.setFormatter(json_formatter)
+            logger_topic, handler_topic = setup_logger('topic_logger', user+'_topic_logger.log')
+            handler_topic.setFormatter(json_formatter)
             
 
             
@@ -326,7 +367,9 @@ def main():
         client.connect(broker_name, port) 
         client.subscribe('NP_UNITO_DCDC', qos=1)
         client.subscribe('Emotions', qos=1)
+        client.subscribe('AITEK_EVENTS', qos=1)
         client.subscribe('NP_RELAB_VD', qos=1)# Effective speed
+        client.subscribe('NP_UNIBO_FTD', qos=1)
         client.loop_forever()
     except Exception as exception:
         print('connect to client error')

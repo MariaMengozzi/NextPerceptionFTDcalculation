@@ -7,13 +7,14 @@ import time
 
 decimals = 4
 
+start = 0
 
-for i in range(10):
+for i in range(5):
     client = paho.Client()
     #client.on_subscribe = on_subscribe
     #client.on_message = on_message
-    client.connect('broker.emqx.io', 1883) #tools.lysis-iot.com -> broker prof 
-    for i in range(4):
+    client.connect('broker.hivemq.com', 1883) #tools.lysis-iot.com -> broker prof 
+    for k in range(4):
         s = random.randint(0, 160)
 
         anger = round(random.random(),decimals) # num casuale tra 0 e 1
@@ -31,17 +32,28 @@ for i in range(10):
 
         client.publish('Emotions', emotion)
         client.publish('NP_RELAB_VD', speed)
+
         print(emotion)
         print(s)
+        
 
     DC = random.randint(0, 1)
-    DV = random.randint(0, 1)
+    eyesOffRoad = random.randint(0, 1)
     confidence_value =[0.0, round(random.random(),1)]
-    D_topic = ['','{"time": 123456, "eyesOffRoad": ' +str(DV)+',"cognitive_distraction":'+str(DC)+', "eyesOffRoad_confidence": '+str(random.choice(confidence_value))+',  "cognitive_distraction_confidence": '+str(random.choice(confidence_value))+', "eyesOffRoad_pred_1s": 0.0, "cognitive_distraction_pred_1s": 0.0 }']
-    D = random.choice(D_topic)
-
+    DC_topic = ['','{"time": 123456, "eyesOffRoad": ' +str(eyesOffRoad)+',"cognitive_distraction":'+str(DC)+', "eyesOffRoad_confidence": '+str(random.choice(confidence_value))+',  "cognitive_distraction_confidence": '+str(random.choice(confidence_value))+', "eyesOffRoad_pred_1s": 0.0, "cognitive_distraction_pred_1s": 0.0 }']
+    D = random.choice(DC_topic)
     client.publish('NP_UNITO_DCDC', D)
+    
+    DV = random.randint(0, 1)
+    if DV != start:
+        start = DV
+    DV_topic = '{"timestamp": "2022-04-11 16:52:26.123", "event": "reverse", "start": "'+ str(bool(DV)) + '"}'
+
+    client.publish('AITEK_EVENTS', DV_topic)
+    print(DV_topic)
+
     print(D)
+
     print()
 
     time.sleep(1)
