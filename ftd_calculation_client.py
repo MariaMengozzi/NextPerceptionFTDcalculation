@@ -113,6 +113,7 @@ disgust = 0
 surprise = 0
 cd = 0 #cognitive distraction value
 vd = 0 #visual distraction value
+arousal=0
 
 anger_buffer = [0,0,0,0]
 happiness_buffer = [0,0,0,0]
@@ -122,7 +123,7 @@ neutral_buffer = [0,0,0,0]
 disgust_buffer = [0,0,0,0]
 surprise_buffer = [0,0,0,0]
 speed_buffer = [0,0,0,0]
-
+arousal_buffer = [0, 0, 0, 0]  # 1 arousal max, 0 arousal min
 
 user = ''
 
@@ -137,8 +138,8 @@ def logTopic(topic, msg):
 
 def on_message(client, userdata, msg):
     global FTD, IDC, IDV, weight, decimals, threshold_v, threshold_i_v, threshold_i_c, DCi, DVi, s, Ei, flagD, flagE, flagV
-    global anger, happiness, fear, sadness, neutral, disgust, surprise, cd, vd 
-    global anger_buffer, happiness_buffer, fear_buffer, sadness_buffer, neutral_buffer, disgust_buffer, surprise_buffer, speed_buffer, timestamp_relab
+    global anger, happiness, fear, sadness, neutral, disgust, surprise, cd, vd , arousal
+    global anger_buffer, happiness_buffer, fear_buffer, sadness_buffer, neutral_buffer, disgust_buffer, surprise_buffer, speed_buffer, timestamp_relab, arousal_buffer
     global user
     #print("topic: "+msg.topic)
 
@@ -240,6 +241,26 @@ def on_message(client, userdata, msg):
         disgust_buffer.append(float(e['disgust']))
         surprise_buffer.append(float(e['surprise']))
         #emotions_total= Ei
+
+    elif msg.topic == 'NP_UNIPR_AROUSAL':
+
+        try:
+            data = json.loads(str(msg.payload.decode("utf-8")))
+            print(data)
+            if len(str(msg.payload.decode('utf-8'))) == 0:
+                logger_client_error.warning({
+                    'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
+                    "topic": "Arousal",
+                    "msg": 'NO arousal value'
+                })
+                print('NO arousal value')
+            elif "arousal" in data:
+                arousal_buffer.pop(0)
+                arousal_buffer.append(data['arousal'])
+                arousal = np.mean(arousal_buffer)
+        except Exception as exception:
+                print(exception)
+
     elif msg.topic == 'NP_UNIBO_FTD':
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
@@ -262,7 +283,7 @@ def on_message(client, userdata, msg):
 
         emotions = pd.Series([anger, happiness, fear, sadness, neutral, disgust, surprise])
         
-        Ei =  round((emotions * weights_emozioni).sum() / weights_emozioni.sum(), decimals)
+        Ei =  round(((emotions * weights_emozioni).sum() / weights_emozioni.sum()) * arousal, decimals)
 
         if (cd):
             IDV +=1
@@ -289,7 +310,8 @@ def on_message(client, userdata, msg):
                     'neutral': neutral,
                     'disgust': disgust,
                     'surprise': surprise
-            },     
+            },
+            'arousal': arousal,
         'speed': np.mean(speed_buffer)
         }
 
@@ -307,7 +329,8 @@ def on_message(client, userdata, msg):
                     'neutral': neutral,
                     'disgust': disgust,
                     'surprise': surprise
-            },     
+            },
+            'arousal': arousal,
         'speed': np.mean(speed_buffer)
         })
         
@@ -369,6 +392,7 @@ def main():
         client.subscribe('AITEK_EVENTS', qos=1)
         client.subscribe('RL_VehicleDynamics', qos=1)# Effective speed
         client.subscribe('NP_UNIBO_FTD', qos=1)
+        client.subscribe('NP_UNIPR_AROUSAL', qos=1)  # Arousal
         client.loop_forever()
     except Exception as exception:
         print('connect to client error')
