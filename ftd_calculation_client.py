@@ -1,6 +1,5 @@
 #client bloccante: se tutte le operazioni sono sequenziali possiamo usare questo client single threaded.
 
-from asyncio.windows_events import NULL
 import paho.mqtt.client as paho
 import pandas as pd
 import numpy as np
@@ -143,10 +142,10 @@ def on_message(client, userdata, msg):
     global user
     #print("topic: "+msg.topic)
 
-    if msg.topic == 'NP_RELAB_VD':
+    if msg.topic == 'RL_VehicleDynamics':
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
-                raise EmptyMessageException(topic='NP_RELAB_VD')
+                raise EmptyMessageException(topic='RL_VehicleDynamics')
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 s = json.loads(str(msg.payload.decode("utf-8")))
@@ -368,7 +367,7 @@ def main():
         client.subscribe('NP_UNITO_DCDC', qos=1)
         client.subscribe('Emotions', qos=1)
         client.subscribe('AITEK_EVENTS', qos=1)
-        client.subscribe('NP_RELAB_VD', qos=1)# Effective speed
+        client.subscribe('RL_VehicleDynamics', qos=1)# Effective speed
         client.subscribe('NP_UNIBO_FTD', qos=1)
         client.loop_forever()
     except Exception as exception:
