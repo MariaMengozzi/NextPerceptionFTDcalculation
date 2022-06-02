@@ -285,7 +285,7 @@ def on_message(client, userdata, msg):
         
         Ei =  round(((emotions * weights_emozioni).sum() / weights_emozioni.sum()) * arousal, decimals)
 
-        if (cd):
+        if (vd):
             IDV +=1
         else:
             IDV = 0 
