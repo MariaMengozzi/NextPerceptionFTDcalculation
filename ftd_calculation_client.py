@@ -156,7 +156,6 @@ def on_message(client, userdata, msg):
 
         except Exception as exception:
             print(exception)
-        
 
         #flagV = True
     elif msg.topic == 'NP_UNITO_DCDC':
@@ -197,7 +196,7 @@ def on_message(client, userdata, msg):
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 D = json.loads(str(msg.payload.decode("utf-8")))
-                vd = 1 if D['start'] == 'True' else 0
+                vd = 1 if D['start'] else 0
 
         except Exception as exception:
             vd = 0
@@ -267,7 +266,9 @@ def on_message(client, userdata, msg):
                 raise EmptyMessageException(topic='NP_UNIBO_FTD')
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
-                FTD = json.loads(str(msg.payload.decode("utf-8")))['person0']['ftd']
+                FTD = json.loads(str(msg.payload.decode("utf-8")))[user]['ftd']
+            
+                
         except Exception as exception:
             print(exception)
 
