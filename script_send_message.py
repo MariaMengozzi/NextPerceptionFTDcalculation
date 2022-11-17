@@ -62,6 +62,9 @@ for i in range(5):
 
     print(D)
 
+    rulex_message = '{"cognitive_distraction": 0.25544016135940156, "visual_distraction": 0.7142857142857143, "arousal": 0.5566729432269676, "ftd": 0.5571856430727719, "valence": -0.27594903963828316, "distraction": 0.7142857142857143, "strategy": "relax_negative", "add_info": {"case": "2.2", "msg": "Hey, you seem a little bit too agitated... What about your relaxing playlist?", "light": "blue"}, "debug_info": "", "timestamp": 1667987746.209693}'
+    client.publish('DSS', rulex_message)
+    print(rulex_message)
     print()
 
 

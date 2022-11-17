@@ -127,6 +127,14 @@ arousal_buffer = [0, 0, 0, 0]  # 1 arousal max, 0 arousal min
 
 user = ''
 
+UNITO_TOPIC = "NP_UNITO_DCDC"
+ARAUSAL_TOPIC = "NP_UNIPR_AROUSAL"
+FTD_TOPIC = "NP_UNIBO_FTD"
+EMOJI_TOPIC = "Emotions"
+RELAB_TOPIC = "RL_VehicleDynamics"
+RULEX_TOPIC = "DSS"
+AITEK_TOPIC = "AITEK_EVENTS"
+
 def on_subscribe(client, userdata, mid, granted_qos):
     print("Subscribed: "+str(mid)+" "+str(granted_qos))
 
@@ -141,12 +149,13 @@ def on_message(client, userdata, msg):
     global anger, happiness, fear, sadness, neutral, disgust, surprise, cd, vd , arousal
     global anger_buffer, happiness_buffer, fear_buffer, sadness_buffer, neutral_buffer, disgust_buffer, surprise_buffer, speed_buffer, timestamp_relab, arousal_buffer
     global user
+    global UNITO_TOPIC, AITEK_TOPIC, ARAUSAL_TOPIC, FTD_TOPIC, EMOJI_TOPIC, RELAB_TOPIC, RULEX_TOPIC
     #print("topic: "+msg.topic)
 
-    if msg.topic == 'RL_VehicleDynamics':
+    if msg.topic == RELAB_TOPIC:
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
-                raise EmptyMessageException(topic='RL_VehicleDynamics')
+                raise EmptyMessageException(topic=RELAB_TOPIC)
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 s = json.loads(str(msg.payload.decode("utf-8")))
@@ -158,10 +167,10 @@ def on_message(client, userdata, msg):
             print(exception)
 
         #flagV = True
-    elif msg.topic == 'NP_UNITO_DCDC':
+    elif msg.topic == UNITO_TOPIC:
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
-                raise EmptyMessageException(topic='NP_UNITO_DCDC')
+                raise EmptyMessageException(topic=UNITO_TOPIC)
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 D = json.loads(str(msg.payload.decode("utf-8")))
@@ -170,7 +179,7 @@ def on_message(client, userdata, msg):
                 if D['cognitive_distraction_confidence'] == 0.0:
                     logger_client_error.warning({
                         'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
-                        "topic": 'NP_UNITO_DCDC',
+                        "topic": UNITO_TOPIC,
                         "msg": 'NO cognitive distraction value'
                     })
                     print('NO cognitive distraction value')
@@ -189,10 +198,10 @@ def on_message(client, userdata, msg):
 
         flagD = True
 
-    elif msg.topic == 'AITEK_EVENTS':
+    elif msg.topic == AITEK_TOPIC:
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
-                raise EmptyMessageException(topic='AITEK_EVENTS')
+                raise EmptyMessageException(topic=AITEK_TOPIC)
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 D = json.loads(str(msg.payload.decode("utf-8")))
@@ -202,17 +211,17 @@ def on_message(client, userdata, msg):
             vd = 0
             print(exception)
 
-    elif msg.topic == 'Emotions':
+    elif msg.topic == EMOJI_TOPIC:
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
                 e = {"predominant" : "0","neutral":"0","happiness": "0","surprise":"0","sadness": "0","anger": "0","disgust": "0","fear": "0","engagement": "0","valence": "0"}
-                raise EmptyMessageException(topic='Emotions')
+                raise EmptyMessageException(topic=EMOJI_TOPIC)
 
             if len(json.loads(str(msg.payload.decode("utf-8")))) == 0:
                 e = {"predominant" : "0","neutral":"0","happiness": "0","surprise":"0","sadness": "0","anger": "0","disgust": "0","fear": "0","engagement": "0","valence": "0"}
                 logger_client_error.warning({
                     'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
-                    "topic": "Emotions",
+                    "topic": EMOJI_TOPIC,
                     "msg": 'NO emotion value'
                 })
                 print('NO emotion value')
@@ -241,7 +250,7 @@ def on_message(client, userdata, msg):
         surprise_buffer.append(float(e['surprise']))
         #emotions_total= Ei
 
-    elif msg.topic == 'NP_UNIPR_AROUSAL':
+    elif msg.topic == ARAUSAL_TOPIC:
 
         try:
             data = json.loads(str(msg.payload.decode("utf-8")))
@@ -260,15 +269,22 @@ def on_message(client, userdata, msg):
         except Exception as exception:
                 print(exception)
 
-    elif msg.topic == 'NP_UNIBO_FTD':
+    elif msg.topic == FTD_TOPIC:
         try:
             if len(str(msg.payload.decode('utf-8'))) == 0:
-                raise EmptyMessageException(topic='NP_UNIBO_FTD')
+                raise EmptyMessageException(topic=FTD_TOPIC)
             else:
                 logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
                 FTD = json.loads(str(msg.payload.decode("utf-8")))[user]['ftd']
-            
-                
+        except Exception as exception:
+            print(exception)
+    
+    elif msg.topic == RULEX_TOPIC:
+        try:
+            if len(str(msg.payload.decode('utf-8'))) == 0:
+                raise EmptyMessageException(topic=RULEX_TOPIC)
+            else:
+                logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
         except Exception as exception:
             print(exception)
 
@@ -297,7 +313,7 @@ def on_message(client, userdata, msg):
             'timestamp': timestamp_relab,
             'ftd' : max(0, 1 - (DCi + DVi + Ei))
             }}
-        client.publish("NP_UNIBO_FTD", json.dumps(ftd))
+        client.publish(FTD_TOPIC, json.dumps(ftd))
 
         msg = {
             'FTD': max(0, 1 - (DCi + DVi + Ei)),
@@ -349,7 +365,8 @@ def on_message(client, userdata, msg):
 
 def main():
     global user, logger_client_error, handler_client_error, logger_output, handler_output, logger_topic, handler_topic
-    
+    global UNITO_TOPIC, AITEK_TOPIC, ARAUSAL_TOPIC, FTD_TOPIC, EMOJI_TOPIC, RELAB_TOPIC, RULEX_TOPIC
+
     broker_name = None #'tools.lysis-iot.com'
     port = None #1883
 
@@ -388,12 +405,13 @@ def main():
         client.on_subscribe = on_subscribe
         client.on_message = on_message
         client.connect(broker_name, port) 
-        client.subscribe('NP_UNITO_DCDC', qos=1)
-        client.subscribe('Emotions', qos=1)
-        client.subscribe('AITEK_EVENTS', qos=1)
-        client.subscribe('RL_VehicleDynamics', qos=1)# Effective speed
-        client.subscribe('NP_UNIBO_FTD', qos=1)
-        client.subscribe('NP_UNIPR_AROUSAL', qos=1)  # Arousal
+        client.subscribe(UNITO_TOPIC, qos=1)
+        client.subscribe(EMOJI_TOPIC, qos=1)
+        client.subscribe(AITEK_TOPIC, qos=1)
+        client.subscribe(RELAB_TOPIC, qos=1)# Effective speed
+        client.subscribe(FTD_TOPIC, qos=1)
+        client.subscribe(ARAUSAL_TOPIC, qos=1)  # Arousal
+        client.subscribe(RULEX_TOPIC, qos=1)  #TODO
         client.loop_forever()
     except Exception as exception:
         print('connect to client error')
