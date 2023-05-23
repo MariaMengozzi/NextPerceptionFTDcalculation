@@ -255,6 +255,7 @@ def on_message(client, userdata, msg):
         try:
             data = json.loads(str(msg.payload.decode("utf-8")))
             print(data)
+            logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
             if len(str(msg.payload.decode('utf-8'))) == 0:
                 logger_client_error.warning({
                     'timestamp_unibo': int(datetime.datetime.now().timestamp() * 1000),
