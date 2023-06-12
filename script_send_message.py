@@ -9,13 +9,17 @@ decimals = 4
 
 start = 0
 
+s = 5 #initial speed
+
 for i in range(5):
     client = paho.Client()
     #client.on_subscribe = on_subscribe
     #client.on_message = on_message
     client.connect('broker.hivemq.com', 1883) #tools.lysis-iot.com -> broker prof
     for k in range(4):
-        s = random.randint(0, 160)
+        #s = random.randint(0, 160) #random speed
+        #incremental speed (the increment can be one of the value in the [] )
+        s = s + 5
 
         anger = round(random.random(),decimals) # num casuale tra 0 e 1
         disgust = round(random.uniform(0, 1-anger), decimals)
@@ -32,7 +36,8 @@ for i in range(5):
         arousal_topic = [
             json.dumps({"arousal": 0}),
             json.dumps({"arousal": round(random.random(), decimals)}),
-            json.dumps({"arousal": 1})
+            json.dumps({"arousal": 1}),
+            json.dumps({"arousal": -1})
         ]
         arousal = random.choice(arousal_topic)
         client.publish('NP_UNIPR_AROUSAL',arousal)

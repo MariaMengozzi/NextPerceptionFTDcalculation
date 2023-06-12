@@ -264,8 +264,13 @@ def on_message(client, userdata, msg):
                 })
                 print('NO arousal value')
             elif "arousal" in data:
+                arousal_value = data['arousal']
+                if arousal_value < 0:
+                    #case undefined value -> arousal value = -1
+                    arousal_value = np.mean(arousal_buffer)
+
                 arousal_buffer.pop(0)
-                arousal_buffer.append(data['arousal'])
+                arousal_buffer.append(arousal_value)
                 arousal = np.mean(arousal_buffer)
         except Exception as exception:
                 print(exception)
@@ -307,8 +312,10 @@ def on_message(client, userdata, msg):
             IDV +=1
         else:
             IDV = 0 
-
+        speed_mean = np.mean(speed_buffer)
         DVi = round(vd * speed_mean/threshold_v * weight **(IDV - threshold_i_v), decimals)
+
+        print(f"DCi = {DCi}, DVi = {DVi}, Ei = {Ei}")
 
         ftd = {user:{
             'timestamp': timestamp_relab,
@@ -319,7 +326,9 @@ def on_message(client, userdata, msg):
         msg = {
             'FTD': max(0, 1 - (DCi + DVi + Ei)),
             'cognitive distraction' : cd,
+            'IDC': IDC,
             'visual distraction': vd,
+            'IDV': IDV,
             'emotion': {
                     'anger': anger,
                     'happiness': happiness,
@@ -338,7 +347,9 @@ def on_message(client, userdata, msg):
             'timestamp_unibo': datetime.datetime.now().timestamp() * 1000, #convert to milliseconds
             'FTD': max(0, 1 - (DCi + DVi + Ei)),
             'cognitive distraction' : cd,
+            'IDC': IDC,
             'visual distraction': vd,
+            'IDV': IDV,
             'emotion': {
                     'anger': anger,
                     'happiness': happiness,
