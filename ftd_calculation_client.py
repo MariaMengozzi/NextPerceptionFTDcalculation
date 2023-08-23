@@ -360,11 +360,11 @@ def main():
             port = int(data['port'])
             user = file['person_config']
             print(user)
-            logger_client_error, handler_client_error = setup_logger('main_logger', user+'_client.log')
+            logger_client_error, handler_client_error = setup_logger('main_logger', user+'_client2.log')
             handler_client_error.setFormatter(json_formatter)
-            logger_output, handler_output = setup_logger('output_logger', user+'_result.log')
+            logger_output, handler_output = setup_logger('output_logger', user+'_result2.log')
             handler_output.setFormatter(json_formatter)
-            logger_topic, handler_topic = setup_logger('topic_logger', user+'_topic_logger.log')
+            logger_topic, handler_topic = setup_logger('topic_logger', user+'_topic_logger2.log')
             handler_topic.setFormatter(json_formatter)
     except Exception as exception:
         print(exception)
