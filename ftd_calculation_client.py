@@ -334,7 +334,8 @@ def on_message(client, userdata, msg):
                     'surprise': surprise
             },
             'arousal': arousal,
-        'speed': np.mean(speed_buffer)
+        'speed': np.mean(speed_buffer),
+        'timestamp_relab': timestamp_relab
         }
 
         logger_output.critical(msg)
