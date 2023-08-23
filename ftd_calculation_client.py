@@ -101,8 +101,6 @@ flagE = False
 flagD = False
 flagV = False
 
-
-
 #variable for log
 anger = 0
 happiness = 0
@@ -254,7 +252,6 @@ def on_message(client, userdata, msg):
 
         try:
             data = json.loads(str(msg.payload.decode("utf-8")))
-            print(data)
             logTopic(msg.topic, json.loads(str(msg.payload.decode("utf-8"))))
             if len(str(msg.payload.decode('utf-8'))) == 0:
                 logger_client_error.warning({
@@ -315,8 +312,6 @@ def on_message(client, userdata, msg):
         speed_mean = np.mean(speed_buffer)
         DVi = round(vd * speed_mean/threshold_v * weight **(IDV - threshold_i_v), decimals)
 
-        print(f"DCi = {DCi}, DVi = {DVi}, Ei = {Ei}")
-
         ftd = {user:{
             'timestamp': timestamp_relab,
             'ftd' : max(0, 1 - (DCi + DVi + Ei))
@@ -342,38 +337,9 @@ def on_message(client, userdata, msg):
         'speed': np.mean(speed_buffer)
         }
 
-        logger_output.critical({
-            'timestamp_relab': timestamp_relab, #ftd[user]['timestamp']
-            'timestamp_unibo': datetime.datetime.now().timestamp() * 1000, #convert to milliseconds
-            'FTD': max(0, 1 - (DCi + DVi + Ei)),
-            'cognitive distraction' : cd,
-            'IDC': IDC,
-            'visual distraction': vd,
-            'IDV': IDV,
-            'emotion': {
-                    'anger': anger,
-                    'happiness': happiness,
-                    'fear': fear,
-                    'sadness': sadness,
-                    'neutral': neutral,
-                    'disgust': disgust,
-                    'surprise': surprise
-            },
-            'arousal': arousal,
-        'speed': np.mean(speed_buffer)
-        })
+        logger_output.critical(msg)
         
-        #flagE = False
         flagD = False
-        #flagV = False
-        #FTDs.append(max(0, 1 - (DCi + DVi + Ei)))
-        print()
-        print('FTD =', max(0, 1 - (DCi + DVi + Ei)))
-        print()
-    
-        
-        #TODO INSERT INTO DATABASE
-        
 
 def main():
     global user, logger_client_error, handler_client_error, logger_output, handler_output, logger_topic, handler_topic
@@ -399,9 +365,6 @@ def main():
             handler_output.setFormatter(json_formatter)
             logger_topic, handler_topic = setup_logger('topic_logger', user+'_topic_logger.log')
             handler_topic.setFormatter(json_formatter)
-            
-
-            
     except Exception as exception:
         print(exception)
 
